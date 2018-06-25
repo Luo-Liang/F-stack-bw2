@@ -14,9 +14,9 @@ LIBS+= -Wl,--no-whole-archive -lrt -lm -ldl -lcrypto -pthread -lnuma
 LDFLAGS += -lstdc++
 TARGET="helloworld"
 all:
-	g++ -O3 -std=c++11  -gdwarf-2  -I../lib -o ${TARGET} main.cpp ${LIBS} ${LDFLAGS}
-	g++ -O3 -std=c++11  -gdwarf-2  -I../lib -o ${TARGET}_epoll main_epoll.cpp ${LIBS} ${LDFLAGS}
-	g++ -O3 -std=c++11  -gdwarf-2  -I../lib -o ${TARGET} main_client.cpp ${LIBS} ${LDFLAGS}
+	g++ -O3 -std=c++11  -gdwarf-2  -I$(FF_PATH)/lib -o ${TARGET} main.cpp ${LIBS} ${LDFLAGS}
+	g++ -O3 -std=c++11  -gdwarf-2  -I$(FF_PATH)/lib -o ${TARGET}_epoll main_epoll.cpp ${LIBS} ${LDFLAGS}
+	g++ -O3 -std=c++11  -gdwarf-2  -I$(FF_PATH)/lib -o ${TARGET} main_client.cpp ${LIBS} ${LDFLAGS}
 
 .PHONY: clean
 clean:
