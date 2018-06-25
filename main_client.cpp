@@ -59,8 +59,6 @@ int main(int argc, char *argv[])
     {
         interval = atoi(ap.retrieve<std::string>("interval").c_str());
     }
-    std::string sip;
-
     sockfd = ff_socket(AF_INET, SOCK_STREAM, 0);
     printf("sockfd:%d\n", sockfd);
     if (sockfd < 0)
