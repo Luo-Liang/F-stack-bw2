@@ -24,6 +24,14 @@ struct epoll_event events[MAX_EVENTS];
 
 int epfd;
 int sockfd;
+int duration;
+int interval;
+timeval start, now, last;
+
+int loop(void* arg)
+{
+    
+}
 
 int main(int argc, char *argv[])
 {
@@ -34,7 +42,7 @@ int main(int argc, char *argv[])
     {
         if (strcmp("--", argv[i]) == 0)
         {
-            skip == i + 1;
+            skip = i + 1;
             break;
         }
     }
@@ -46,15 +54,15 @@ int main(int argc, char *argv[])
     ap.addArgument("--pktSize", 1, true);
     argc -= skip;
     argv += skip;
-
+    ap.ignoreFirstArgument(false);
     ap.parse(argc, (const char **)argv);
 
-    int duration = 10;
+    duration = 10;
     if (ap.count("duration") > 0)
     {
         duration = atoi(ap.retrieve<std::string>("duration").c_str());
     }
-    int interval = 1;
+    interval = 1;
     if (ap.count("interval") > 0)
     {
         interval = atoi(ap.retrieve<std::string>("interval").c_str());
@@ -74,9 +82,8 @@ int main(int argc, char *argv[])
     bzero(&my_addr, sizeof(my_addr));
     my_addr.sin_family = AF_INET;
     my_addr.sin_port = htons(CLIENT_PORT);
-
-    auto sip = ap.retrieve<std::string>("serverIp");
-    inet_pton(AF_INET, sip.c_str(), &(my_addr.sin_addr));
+    //bind to any of my address.
+    my_addr.sin_addr.s_addr = htonl(INADDR_ANY);
 
     //my_addr.sin_addr.s_addr = htonl(INADDR_ANY);
 
@@ -86,10 +93,17 @@ int main(int argc, char *argv[])
         printf("ff_bind failed\n");
         exit(1);
     }
-    ret = ff_connect(sockfd, (linux_sockaddr *)&my_addr, sizeof(sockaddr_in));
-    if (ret < 0)
+
+    sockaddr_in remote_addr;
+    remote_addr.sin_family = AF_INET;
+    remote_addr.sin_port = htons(80);
+    auto sip = ap.retrieve<std::string>("serverIp");
+    inet_pton(AF_INET, sip.c_str(), &(remote_addr.sin_addr));
+    ret = ff_connect(sockfd, (linux_sockaddr *)&remote_addr, sizeof(sockaddr_in));
+    if (ret < 0 && errno != EINPROGRESS)
     {
-        printf("ff_connect failed\n");
+        //ff_connect can return EINPROGRESS as it is always nb
+        printf("ff_connect failed %d: %s\n", errno, strerror(errno));
         exit(1);
     }
 
@@ -98,7 +112,6 @@ int main(int argc, char *argv[])
     ev.events = EPOLLIN;
     ff_epoll_ctl(epfd, EPOLL_CTL_ADD, sockfd, &ev);
     char req[] = "START";
-    timeval start, now, last;
     gettimeofday(&start, NULL);
     ff_write(sockfd, req, sizeof(req));
     size_t bytesRecv = 0;
