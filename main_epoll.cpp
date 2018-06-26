@@ -57,6 +57,10 @@ int loop(void *arg)
                            strerror(errno));
                     break;
                 }
+		else
+		{
+		  printf("an incoming connection is accepted.\n");
+		}
             }
         }
         else
