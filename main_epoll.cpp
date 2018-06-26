@@ -98,7 +98,7 @@ int main(int argc, char *argv[])
     {
         if (strcmp("--", argv[i]) == 0)
         {
-            skip == i + 1;
+            skip = i + 1;
             break;
         }
     }
@@ -108,6 +108,7 @@ int main(int argc, char *argv[])
 
     ArgumentParser ap;
     ap.addArgument("--pktSize", 1, false);
+    ap.ignoreFirstArgument(false);
     ap.parse(argc, (const char **)argv);
     requestSize = 64;
     if (ap.count("pktSize") > 0)
