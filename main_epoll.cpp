@@ -70,6 +70,7 @@ int loop(void *arg)
                 /* Simply close socket */
                 ff_epoll_ctl(epfd, EPOLL_CTL_DEL, events[i].data.fd, NULL);
                 ff_close(events[i].data.fd);
+		printf("connection dropped. %s?\n", strerror(errno));
             }
             else if (events[i].events & EPOLLIN)
             {
