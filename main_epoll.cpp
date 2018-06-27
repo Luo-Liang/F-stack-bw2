@@ -110,7 +110,10 @@ int main(int argc, char *argv[])
 
     int nargc = argc - skip;
     auto nargv = argv + skip;
-    ap.ignoreFirstArgument(false);
+    if (skip != 0)
+    {
+        ap.ignoreFirstArgument(false);
+    }
     ap.parse(nargc, (const char **)nargv);
     apiSwitch = PLinkEpollAPI::UseFStack;
     PLinkInit(argc, argv);
