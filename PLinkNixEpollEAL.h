@@ -82,7 +82,7 @@ int PLinkSetNonBlock(int fd)
         return ioctl(fd, FIONBIO, &on);
     case UseFStack:
     default:
-        return ff_ioctl(sockfd, FIONBIO, &on);
+        return ff_ioctl(fd, FIONBIO, &on);
     }
 }
 
