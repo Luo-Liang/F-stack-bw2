@@ -88,8 +88,6 @@ int loop(void *arg)
 
 int main(int argc, char *argv[])
 {
-    PLinkInit(argc, argv);
-    //find --
     int skip = 0;
     for (int i = 0; i < argc; i++)
     {
@@ -107,10 +105,25 @@ int main(int argc, char *argv[])
     ap.addArgument("--pktSize", 1, true);
     ap.addArgument("--api", 1, true);
 
-    argc -= skip;
-    argv += skip;
+    int nargc = argc - skip;
+    auto nargv = argv + skip;
     ap.ignoreFirstArgument(false);
-    ap.parse(argc, (const char **)argv);
+    ap.parse(nargc, (const char **)nargv);
+    apiSwitch = PLinkEpollAPI::UseFStack;
+    PLinkInit(argc, argv);
+    //find --
+    if (ap.count("api") > 0)
+    {
+        auto api = ap.retrieve<std::string>("api");
+        if (api == "linux")
+        {
+            apiSwitch = PLinkEpollAPI::UseLinux;
+        }
+        else
+        {
+            apiSwitch = PLinkEpollAPI::UseFStack;
+        }
+    }
 
     duration = 10;
     if (ap.count("duration") > 0)
@@ -130,20 +143,6 @@ int main(int argc, char *argv[])
         exit(1);
     }
 
-    apiSwitch = PLinkEpollAPI::UseFStack;
-    if (ap.count("api") > 0)
-    {
-        auto api = ap.retrieve<std::string>("api");
-        if(api == "linux")
-        {
-            apiSwitch = PLinkEpollAPI::UseLinux;
-        }
-        else
-        {
-            apiSwitch = PLinkEpollAPI::UseFStack;
-        }
-    }
-
     PLinkSetNonBlock(sockfd);
 
     struct sockaddr_in my_addr;
@@ -155,14 +154,14 @@ int main(int argc, char *argv[])
     sip = ap.retrieve<std::string>("serverIp");
     //my_addr.sin_addr.s_addr = htonl(INADDR_ANY);
 
-    int ret = PLinkBind(sockfd, (const sockaddr*)&my_addr, sizeof(my_addr));
+    int ret = PLinkBind(sockfd, (const sockaddr *)&my_addr, sizeof(my_addr));
     if (ret < 0)
     {
         printf("ff_bind failed\n");
         exit(1);
     }
 
-    assert((epfd = PLinkEpollCreate(0)) > 0);
+    assert((epfd = PLinkEpollCreate()) > 0);
     ev.data.fd = sockfd;
     ev.events = EPOLLIN | EPOLLOUT;
     PLinkEpollCtrl(epfd, EPOLL_CTL_ADD, sockfd, &ev);
@@ -172,7 +171,7 @@ int main(int argc, char *argv[])
     remote_addr.sin_family = AF_INET;
     remote_addr.sin_port = htons(80);
     inet_pton(AF_INET, sip.c_str(), &(remote_addr.sin_addr));
-    ret = PLinkConnect(sockfd, (const sockaddr*)&remote_addr, sizeof(sockaddr_in));
+    ret = PLinkConnect(sockfd, (const sockaddr *)&remote_addr, sizeof(sockaddr_in));
     if (ret < 0 && errno != EINPROGRESS)
     {
         //ff_connect can return EINPROGRESS as it is always nb

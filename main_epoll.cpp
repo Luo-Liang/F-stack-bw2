@@ -94,8 +94,6 @@ int loop(void *arg)
 
 int main(int argc, char *argv[])
 {
-    PLinkInit(argc, argv);
-
     int skip = 0;
     for (int i = 0; i < argc; i++)
     {
@@ -106,14 +104,33 @@ int main(int argc, char *argv[])
         }
     }
 
-    argc -= skip;
-    argv += skip;
-
     ArgumentParser ap;
-    ap.addArgument("--pktSize", 1, false);
+    ap.addArgument("--serverIp", 1, false);
+    ap.addArgument("--duration", 1, true);
+    ap.addArgument("--interval", 1, true);
+    ap.addArgument("--pktSize", 1, true);
     ap.addArgument("--api", 1, true);
+
+    int nargc = argc - skip;
+    auto nargv = argv + skip;
     ap.ignoreFirstArgument(false);
-    ap.parse(argc, (const char **)argv);
+    ap.parse(nargc, (const char **)nargv);
+    apiSwitch = PLinkEpollAPI::UseFStack;
+    PLinkInit(argc, argv);
+    if (ap.count("api") > 0)
+    {
+        auto api = ap.retrieve<std::string>("api");
+        if (api == "linux")
+        {
+            apiSwitch = PLinkEpollAPI::UseLinux;
+        }
+        else
+        {
+            apiSwitch = PLinkEpollAPI::UseFStack;
+        }
+    }
+
+    PLinkInit(argc, argv);
     requestSize = 64;
     if (ap.count("pktSize") > 0)
     {
@@ -134,20 +151,6 @@ int main(int argc, char *argv[])
         exit(1);
     }
 
-    apiSwitch = PLinkEpollAPI::UseFStack;
-    if (ap.count("api") > 0)
-    {
-        auto api = ap.retrieve<std::string>("api");
-        if (api == "linux")
-        {
-            apiSwitch = PLinkEpollAPI::UseLinux;
-        }
-        else
-        {
-            apiSwitch = PLinkEpollAPI::UseFStack;
-        }
-    }
-
     PLinkSetNonBlock(sockfd);
 
     struct sockaddr_in my_addr;
@@ -156,7 +159,7 @@ int main(int argc, char *argv[])
     my_addr.sin_port = htons(80);
     my_addr.sin_addr.s_addr = htonl(INADDR_ANY);
 
-    int ret = PLinkBind(sockfd, (const sockaddr*)&my_addr, sizeof(my_addr));
+    int ret = PLinkBind(sockfd, (const sockaddr *)&my_addr, sizeof(my_addr));
     if (ret < 0)
     {
         printf("ff_bind failed\n");
@@ -170,7 +173,7 @@ int main(int argc, char *argv[])
         exit(1);
     }
 
-    assert((epfd = PLinkEpollCreate(0)) > 0);
+    assert((epfd = PLinkEpollCreate()) > 0);
     ev.data.fd = sockfd;
     ev.events = EPOLLIN;
     PLinkEpollCtrl(epfd, EPOLL_CTL_ADD, sockfd, &ev);

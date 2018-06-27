@@ -139,19 +139,19 @@ int PLinkListen(int sockfd, int backlog)
     }
 }
 
-int PLinkEpollCreate(int size)
+int PLinkEpollCreate()
 {
     switch (apiSwitch)
     {
     case UseLinux:
-        return epoll_create(size);
+        return epoll_create(1);
     case UseFStack:
     default:
-        return ff_epoll_create(size);
+        return ff_epoll_create(1);
     }
 }
 
-int PLinkBind(int sockfd, const struct sockaddr *addr, socklen_t addrlen)
+int PLinkBind(int sockfd, const sockaddr *addr, socklen_t addrlen)
 {
     switch (apiSwitch)
     {
