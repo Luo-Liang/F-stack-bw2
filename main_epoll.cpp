@@ -11,9 +11,7 @@
 #include <assert.h>
 #include <vector>
 
-#include "ff_config.h"
-#include "ff_api.h"
-#include "ff_epoll.h"
+#include "PLinkNixEpollEAL.h"
 #include "argparse.h"
 
 #define MAX_EVENTS 512
@@ -24,6 +22,7 @@ struct epoll_event events[MAX_EVENTS];
 int epfd;
 int sockfd;
 int requestSize;
+PLinkEpollAPI apiSwitch;
 
 std::vector<char> contents;
 const char PLINK[] = "PLINK";
@@ -32,7 +31,7 @@ int loop(void *arg)
 {
     /* Wait for events to happen */
 
-    int nevents = ff_epoll_wait(epfd, events, MAX_EVENTS, 0);
+    int nevents = PLinkEpollWait(epfd, events, MAX_EVENTS, 0);
     int i;
 
     for (i = 0; i < nevents; ++i)
@@ -42,7 +41,7 @@ int loop(void *arg)
         {
             while (1)
             {
-                int nclientfd = ff_accept(sockfd, NULL, NULL);
+                int nclientfd = PLinkAccept(sockfd, NULL, NULL);
                 if (nclientfd < 0)
                 {
                     break;
@@ -51,16 +50,16 @@ int loop(void *arg)
                 /* Add to event list */
                 ev.data.fd = nclientfd;
                 ev.events = EPOLLIN;
-                if (ff_epoll_ctl(epfd, EPOLL_CTL_ADD, nclientfd, &ev) != 0)
+                if (PLinkEpollCtrl(epfd, EPOLL_CTL_ADD, nclientfd, &ev) != 0)
                 {
                     printf("ff_epoll_ctl failed:%d, %s\n", errno,
                            strerror(errno));
                     break;
                 }
-		else
-		{
-		  printf("an incoming connection is accepted.\n");
-		}
+                else
+                {
+                    printf("an incoming connection is accepted.\n");
+                }
             }
         }
         else
@@ -68,21 +67,21 @@ int loop(void *arg)
             if (events[i].events & EPOLLERR)
             {
                 /* Simply close socket */
-                ff_epoll_ctl(epfd, EPOLL_CTL_DEL, events[i].data.fd, NULL);
-                ff_close(events[i].data.fd);
+                PLinkEpollCtrl(epfd, EPOLL_CTL_DEL, events[i].data.fd, NULL);
+                PLinkClose(events[i].data.fd);
             }
             else if (events[i].events & EPOLLIN)
             {
                 char buf[256];
-                size_t readlen = ff_read(events[i].data.fd, buf, sizeof(buf));
+                size_t readlen = PLinkRead(events[i].data.fd, buf, sizeof(buf));
                 if (readlen > 0)
                 {
-                    ff_write(events[i].data.fd, contents.data(), contents.size());
+                    PLinkWrite(events[i].data.fd, contents.data(), contents.size());
                 }
                 else
                 {
-                    ff_epoll_ctl(epfd, EPOLL_CTL_DEL, events[i].data.fd, NULL);
-                    ff_close(events[i].data.fd);
+                    PLinkEpollCtrl(epfd, EPOLL_CTL_DEL, events[i].data.fd, NULL);
+                    PLinkClose(events[i].data.fd);
                 }
             }
             else
@@ -95,7 +94,7 @@ int loop(void *arg)
 
 int main(int argc, char *argv[])
 {
-    ff_init(argc, argv);
+    PLinkInit(argc, argv);
 
     int skip = 0;
     for (int i = 0; i < argc; i++)
@@ -112,6 +111,7 @@ int main(int argc, char *argv[])
 
     ArgumentParser ap;
     ap.addArgument("--pktSize", 1, false);
+    ap.addArgument("--api", 1, true);
     ap.ignoreFirstArgument(false);
     ap.parse(argc, (const char **)argv);
     requestSize = 64;
@@ -126,7 +126,7 @@ int main(int argc, char *argv[])
         contents.at(i) = PLINK[i % sizeof(PLINK)];
     }
 
-    sockfd = ff_socket(AF_INET, SOCK_STREAM, 0);
+    sockfd = PLinkSocket(AF_INET, SOCK_STREAM, 0);
     printf("sockfd:%d\n", sockfd);
     if (sockfd < 0)
     {
@@ -134,8 +134,21 @@ int main(int argc, char *argv[])
         exit(1);
     }
 
-    int on = 1;
-    ff_ioctl(sockfd, FIONBIO, &on);
+    apiSwitch = PLinkEpollAPI::UseFStack;
+    if (ap.count("api") > 0)
+    {
+        auto api = ap.retrieve<std::string>("api");
+        if (api == "linux")
+        {
+            apiSwitch = PLinkEpollAPI::UseLinux;
+        }
+        else
+        {
+            apiSwitch = PLinkEpollAPI::UseFStack;
+        }
+    }
+
+    PLinkSetNonBlock(sockfd);
 
     struct sockaddr_in my_addr;
     bzero(&my_addr, sizeof(my_addr));
@@ -143,24 +156,24 @@ int main(int argc, char *argv[])
     my_addr.sin_port = htons(80);
     my_addr.sin_addr.s_addr = htonl(INADDR_ANY);
 
-    int ret = ff_bind(sockfd, (struct linux_sockaddr *)&my_addr, sizeof(my_addr));
+    int ret = PLinkBind(sockfd, (struct linux_sockaddr *)&my_addr, sizeof(my_addr));
     if (ret < 0)
     {
         printf("ff_bind failed\n");
         exit(1);
     }
 
-    ret = ff_listen(sockfd, MAX_EVENTS);
+    ret = PLinkListen(sockfd, MAX_EVENTS);
     if (ret < 0)
     {
         printf("ff_listen failed\n");
         exit(1);
     }
 
-    assert((epfd = ff_epoll_create(0)) > 0);
+    assert((epfd = PLinkEpollCreate(0)) > 0);
     ev.data.fd = sockfd;
     ev.events = EPOLLIN;
-    ff_epoll_ctl(epfd, EPOLL_CTL_ADD, sockfd, &ev);
-    ff_run(loop, NULL);
+    PLinkEpollCtrl(epfd, EPOLL_CTL_ADD, sockfd, &ev);
+    PLinkRun(loop, NULL);
     return 0;
 }

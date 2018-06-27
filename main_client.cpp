@@ -11,14 +11,12 @@
 #include <assert.h>
 #include <string>
 
-#include "ff_config.h"
-#include "ff_api.h"
-#include "ff_epoll.h"
+#include "PLinkNixEpollEAL.h"
 #include "argparse.h"
 
 #define MAX_EVENTS 512
 #define CLIENT_PORT 1234
-#define MAX_READ_SIZE 1024
+#define MAX_READ_SIZE 1024 * 1024
 struct epoll_event ev;
 struct epoll_event events[MAX_EVENTS];
 
@@ -27,15 +25,70 @@ int sockfd;
 int duration;
 int interval;
 timeval start, now, last;
+size_t bytesRecv = 0;
+const char req[] = "PLINK";
+bool transferInitiated = false;
+std::string sip;
+char buf[MAX_READ_SIZE];
+PLinkEpollAPI apiSwitch;
 
-int loop(void* arg)
+int loop(void *arg)
 {
-    
+    gettimeofday(&now, NULL);
+    if (now.tv_sec - start.tv_sec > duration && transferInitiated)
+    {
+        exit(0);
+    }
+    if (now.tv_sec - last.tv_sec >= interval)
+    {
+        //print current bandwidth.
+        printf("BW = %fGbps\n", 8.0 * bytesRecv / interval / 1024 / 1024 / 1024);
+        bytesRecv = 0;
+    }
+    int nevents = PLinkEpollWait(epfd, events, MAX_EVENTS, 0);
+    int i;
+
+    for (i = 0; i < nevents; ++i)
+    {
+        if (events[i].events & EPOLLERR)
+        {
+            /* Simply close socket */
+            PLinkEpollCtrl(epfd, EPOLL_CTL_DEL, events[i].data.fd, NULL);
+            PLinkClose(events[i].data.fd);
+            printf("EPOLLERR. %s=?\n", strerror(errno));
+            exit(-1);
+        }
+        if (events[i].events & EPOLLIN)
+        {
+            size_t readlen = PLinkRead(events[i].data.fd, buf, sizeof(buf));
+            if (readlen > 0)
+            {
+                bytesRecv += readlen;
+                PLinkWrite(events[i].data.fd, req, sizeof(req));
+            }
+            else
+            {
+                PLinkEpollCtrl(epfd, EPOLL_CTL_DEL, events[i].data.fd, NULL);
+                PLinkClose(events[i].data.fd);
+            }
+        }
+        if (events[i].events & EPOLLOUT)
+        {
+            gettimeofday(&start, NULL);
+            transferInitiated = true;
+            auto sz = PLinkWrite(sockfd, req, sizeof(req));
+            //turn off epollout
+            ev.events = EPOLLIN;
+            PLinkEpollCtrl(epfd, EPOLL_CTL_MOD, sockfd, &ev);
+            printf("client initiating transfer of %lu bytes\n", sz);
+        }
+    }
+    last = now;
 }
 
 int main(int argc, char *argv[])
 {
-    ff_init(argc, argv);
+    PLinkInit(argc, argv);
     //find --
     int skip = 0;
     for (int i = 0; i < argc; i++)
@@ -52,6 +105,8 @@ int main(int argc, char *argv[])
     ap.addArgument("--duration", 1, true);
     ap.addArgument("--interval", 1, true);
     ap.addArgument("--pktSize", 1, true);
+    ap.addArgument("--api", 1, true);
+
     argc -= skip;
     argv += skip;
     ap.ignoreFirstArgument(false);
@@ -67,7 +122,7 @@ int main(int argc, char *argv[])
     {
         interval = atoi(ap.retrieve<std::string>("interval").c_str());
     }
-    sockfd = ff_socket(AF_INET, SOCK_STREAM, 0);
+    sockfd = PLinkSocket(AF_INET, SOCK_STREAM, 0);
     printf("sockfd:%d\n", sockfd);
     if (sockfd < 0)
     {
@@ -75,8 +130,21 @@ int main(int argc, char *argv[])
         exit(1);
     }
 
-    int on = 1;
-    ff_ioctl(sockfd, FIONBIO, &on);
+    apiSwitch = PLinkEpollAPI::UseFStack;
+    if (ap.count("api") > 0)
+    {
+        auto api = ap.retrieve<std::string>("api");
+        if(api == "linux")
+        {
+            apiSwitch = PLinkEpollAPI::UseLinux;
+        }
+        else
+        {
+            apiSwitch = PLinkEpollAPI::UseFStack;
+        }
+    }
+
+    PLinkSetNonBlock(sockfd);
 
     struct sockaddr_in my_addr;
     bzero(&my_addr, sizeof(my_addr));
@@ -84,22 +152,27 @@ int main(int argc, char *argv[])
     my_addr.sin_port = htons(CLIENT_PORT);
     //bind to any of my address.
     my_addr.sin_addr.s_addr = htonl(INADDR_ANY);
-
+    sip = ap.retrieve<std::string>("serverIp");
     //my_addr.sin_addr.s_addr = htonl(INADDR_ANY);
 
-    int ret = ff_bind(sockfd, (struct linux_sockaddr *)&my_addr, sizeof(my_addr));
+    int ret = PLinkBind(sockfd, (const sockaddr*)&my_addr, sizeof(my_addr));
     if (ret < 0)
     {
         printf("ff_bind failed\n");
         exit(1);
     }
 
+    assert((epfd = PLinkEpollCreate(0)) > 0);
+    ev.data.fd = sockfd;
+    ev.events = EPOLLIN | EPOLLOUT;
+    PLinkEpollCtrl(epfd, EPOLL_CTL_ADD, sockfd, &ev);
+    //printf("client initated transfer of %d bytes. err = %s?\n", sz, strerror(errno));
+
     sockaddr_in remote_addr;
     remote_addr.sin_family = AF_INET;
     remote_addr.sin_port = htons(80);
-    auto sip = ap.retrieve<std::string>("serverIp");
     inet_pton(AF_INET, sip.c_str(), &(remote_addr.sin_addr));
-    ret = ff_connect(sockfd, (linux_sockaddr *)&remote_addr, sizeof(sockaddr_in));
+    ret = PLinkConnect(sockfd, (const sockaddr*)&remote_addr, sizeof(sockaddr_in));
     if (ret < 0 && errno != EINPROGRESS)
     {
         //ff_connect can return EINPROGRESS as it is always nb
@@ -107,60 +180,6 @@ int main(int argc, char *argv[])
         exit(1);
     }
 
-    assert((epfd = ff_epoll_create(0)) > 0);
-    ev.data.fd = sockfd;
-    ev.events = EPOLLIN;
-    ff_epoll_ctl(epfd, EPOLL_CTL_ADD, sockfd, &ev);
-    char req[] = "START";
-    gettimeofday(&start, NULL);
-    ff_write(sockfd, req, sizeof(req));
-    size_t bytesRecv = 0;
-    while (true)
-    {
-        gettimeofday(&now, NULL);
-        if (now.tv_sec - start.tv_sec > duration)
-        {
-            break;
-        }
-        if (now.tv_sec - last.tv_sec >= interval)
-        {
-            //print current bandwidth.
-            printf("BW = %fGbps\n", 8.0 * bytesRecv / interval / 1024 / 1024 / 1024);
-        }
-        int nevents = ff_epoll_wait(epfd, events, MAX_EVENTS, 0);
-        int i;
-
-        for (i = 0; i < nevents; ++i)
-        {
-            if (events[i].events & EPOLLERR)
-            {
-                /* Simply close socket */
-                ff_epoll_ctl(epfd, EPOLL_CTL_DEL, events[i].data.fd, NULL);
-                ff_close(events[i].data.fd);
-                printf("EPOLLERR\n");
-                exit(-1);
-            }
-            else if (events[i].events & EPOLLIN)
-            {
-                char buf[MAX_READ_SIZE];
-                size_t readlen = ff_read(events[i].data.fd, buf, sizeof(buf));
-                if (readlen > 0)
-                {
-                    bytesRecv += readlen;
-                    ff_write(events[i].data.fd, req, sizeof(req));
-                }
-                else
-                {
-                    ff_epoll_ctl(epfd, EPOLL_CTL_DEL, events[i].data.fd, NULL);
-                    ff_close(events[i].data.fd);
-                }
-            }
-            else
-            {
-                printf("unknown event: %8.8X\n", events[i].events);
-            }
-        }
-        last = now;
-    }
+    PLinkRun(loop, NULL);
     return 0;
 }
