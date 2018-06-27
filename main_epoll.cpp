@@ -116,7 +116,6 @@ int main(int argc, char *argv[])
     }
     ap.parse(nargc, (const char **)nargv);
     apiSwitch = PLinkEpollAPI::UseFStack;
-    PLinkInit(argc, argv);
     if (ap.count("api") > 0)
     {
         auto api = ap.retrieve<std::string>("api");
@@ -129,7 +128,6 @@ int main(int argc, char *argv[])
             apiSwitch = PLinkEpollAPI::UseFStack;
         }
     }
-
     PLinkInit(argc, argv);
     requestSize = 64;
     if (ap.count("pktSize") > 0)

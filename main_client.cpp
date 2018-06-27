@@ -112,8 +112,7 @@ int main(int argc, char *argv[])
     }
     ap.parse(nargc, (const char **)nargv);
     apiSwitch = PLinkEpollAPI::UseFStack;
-    PLinkInit(argc, argv);
-    //find --
+
     if (ap.count("api") > 0)
     {
         auto api = ap.retrieve<std::string>("api");
@@ -126,7 +125,8 @@ int main(int argc, char *argv[])
             apiSwitch = PLinkEpollAPI::UseFStack;
         }
     }
-
+    PLinkInit(argc, argv);
+    //find --
     duration = 10;
     if (ap.count("duration") > 0)
     {
