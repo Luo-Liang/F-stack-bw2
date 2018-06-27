@@ -105,9 +105,6 @@ int main(int argc, char *argv[])
     }
 
     ArgumentParser ap;
-    ap.addArgument("--serverIp", 1, false);
-    ap.addArgument("--duration", 1, true);
-    ap.addArgument("--interval", 1, true);
     ap.addArgument("--pktSize", 1, true);
     ap.addArgument("--api", 1, true);
 
