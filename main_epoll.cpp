@@ -107,9 +107,9 @@ int main(int argc, char *argv[])
     ArgumentParser ap;
     ap.addArgument("--pktSize", 1, true);
     ap.addArgument("--api", 1, true);
-
     int nargc = argc - skip;
     auto nargv = argv + skip;
+
     if (skip != 0)
     {
         ap.ignoreFirstArgument(false);

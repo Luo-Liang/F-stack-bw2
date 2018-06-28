@@ -31,6 +31,7 @@ bool transferInitiated = false;
 std::string sip;
 char buf[MAX_READ_SIZE];
 PLinkEpollAPI apiSwitch;
+bool connected = false;
 
 int loop(void *arg)
 {
@@ -39,7 +40,7 @@ int loop(void *arg)
     {
         exit(0);
     }
-    if (now.tv_sec - last.tv_sec >= interval)
+    if (now.tv_sec - last.tv_sec >= interval && connected)
     {
         //print current bandwidth.
         printf("BW = %fGbps\n", 8.0 * bytesRecv / interval / 1024 / 1024 / 1024);
@@ -81,6 +82,7 @@ int loop(void *arg)
             ev.events = EPOLLIN;
             PLinkEpollCtrl(epfd, EPOLL_CTL_MOD, sockfd, &ev);
             printf("client initiating transfer of %lu bytes\n", sz);
+            connected =  true;
         }
     }
     last = now;
