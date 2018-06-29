@@ -199,7 +199,7 @@ int PLinkEpollCreate()
     case UseLinux:
         return epoll_create(1);
     case UseANS:
-        return anssock_epoll_create(1);
+        return anssock_epoll_create(512);
     case UseFStack:
     default:
         return ff_epoll_create(1);

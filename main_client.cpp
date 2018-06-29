@@ -16,7 +16,7 @@
 
 #define MAX_EVENTS 512
 #define CLIENT_PORT 1234
-#define MAX_READ_SIZE 1024 * 1024
+#define MAX_READ_SIZE 1024 * 1024 * 16
 struct epoll_event ev;
 struct epoll_event events[MAX_EVENTS];
 
