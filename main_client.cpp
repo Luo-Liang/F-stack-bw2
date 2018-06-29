@@ -122,6 +122,10 @@ int main(int argc, char *argv[])
         {
             apiSwitch = PLinkEpollAPI::UseLinux;
         }
+        else if(api == "ans")
+        {
+            apiSwitch = PLinkEpollAPI::UseANS;
+        }
         else
         {
             apiSwitch = PLinkEpollAPI::UseFStack;
