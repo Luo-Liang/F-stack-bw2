@@ -16,7 +16,7 @@
 
 #define MAX_EVENTS 512
 #define CLIENT_PORT 1234
-#define MAX_READ_SIZE 1024 * 1024 * 16
+#define MAX_READ_SIZE 1024 * 1024 * 16 * 16
 struct epoll_event ev;
 struct epoll_event events[MAX_EVENTS];
 
@@ -61,7 +61,7 @@ int loop(void *arg)
         }
         if (events[i].events & EPOLLIN)
         {
-            size_t readlen = PLinkRead(events[i].data.fd, buf, sizeof(buf));
+            ssize_t readlen = PLinkRead(events[i].data.fd, buf, sizeof(buf));
             if (readlen > 0)
             {
                 bytesRecv += readlen;
