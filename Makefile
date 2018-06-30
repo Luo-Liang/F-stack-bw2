@@ -22,7 +22,7 @@ endif
 CC = gcc
 RM = rm -f
 
-CPPFLAGS += -O3 -std=c++11 \
+CPPFLAGS += -O3 -std=c++11 -g \
           -I$(RTE_ANS)/librte_ans/include \
           -I$(RTE_ANS)/librte_anssock/include \
 	  -I$(FF_PATH)/lib
