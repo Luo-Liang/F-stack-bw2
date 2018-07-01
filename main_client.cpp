@@ -30,7 +30,6 @@ const char req[] = "PLINK";
 bool transferInitiated = false;
 std::string sip;
 char buf[MAX_READ_SIZE];
-PLinkEpollAPI apiSwitch;
 bool connected = false;
 
 int loop(void *arg)
@@ -104,7 +103,6 @@ int main(int argc, char *argv[])
     ap.addArgument("--serverIp", 1, false);
     ap.addArgument("--duration", 1, true);
     ap.addArgument("--interval", 1, true);
-    ap.addArgument("--api", 1, true);
 
     int nargc = argc - skip;
     auto nargv = argv + skip;
@@ -113,24 +111,8 @@ int main(int argc, char *argv[])
         ap.ignoreFirstArgument(false);
     }
     ap.parse(nargc, (const char **)nargv);
-    apiSwitch = PLinkEpollAPI::UseFStack;
 
-    if (ap.count("api") > 0)
-    {
-        auto api = ap.retrieve<std::string>("api");
-        if (api == "linux")
-        {
-            apiSwitch = PLinkEpollAPI::UseLinux;
-        }
-        else if(api == "ans")
-        {
-            apiSwitch = PLinkEpollAPI::UseANS;
-        }
-        else
-        {
-            apiSwitch = PLinkEpollAPI::UseFStack;
-        }
-    }
+   
     PLinkInit(argc, argv);
     //find --
     duration = 10;

@@ -22,7 +22,6 @@ struct epoll_event events[MAX_EVENTS];
 int epfd;
 int sockfd;
 int requestSize;
-PLinkEpollAPI apiSwitch;
 
 std::vector<char> contents;
 const char PLINK[] = "PLINK";
@@ -106,7 +105,6 @@ int main(int argc, char *argv[])
 
     ArgumentParser ap;
     ap.addArgument("--pktSize", 1, true);
-    ap.addArgument("--api", 1, true);
     int nargc = argc - skip;
     auto nargv = argv + skip;
 
@@ -115,23 +113,7 @@ int main(int argc, char *argv[])
         ap.ignoreFirstArgument(false);
     }
     ap.parse(nargc, (const char **)nargv);
-    apiSwitch = PLinkEpollAPI::UseFStack;
-    if (ap.count("api") > 0)
-    {
-        auto api = ap.retrieve<std::string>("api");
-        if (api == "linux")
-        {
-            apiSwitch = PLinkEpollAPI::UseLinux;
-        }
-        else if (api == "ans")
-        {
-            apiSwitch = PLinkEpollAPI::UseANS;
-        }
-        else
-        {
-            apiSwitch = PLinkEpollAPI::UseFStack;
-        }
-    }
+    
     PLinkInit(argc, argv);
     requestSize = 64;
     if (ap.count("pktSize") > 0)

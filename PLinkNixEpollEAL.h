@@ -1,248 +1,224 @@
 #pragma once
-#include "ff_config.h"
-#include "ff_api.h"
-#include "ff_epoll.h"
+#define LINUX 0
+#define ANS 1
+#define FSTACK 2
+
+#if API == ANS
 extern "C"
 {
 #include "anssock_intf.h"
 #include "ans_errno.h"
 }
+#elif API == FSTACK
+#include "ff_config.h"
+#include "ff_api.h"
+#include "ff_epoll.h"
+#elif API == LINUX
+#include <sys/socket.h>
+#include <arpa/inet.h>
+#include <netinet/in.h>
+#else
+#error "Specify API"
+#endif
 
 #include <unistd.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <sched.h>
 #include <sys/times.h>
-
 #include <stdint.h>
 #include <string.h>
 #include <stdarg.h>
 #include <errno.h>
-#include <netinet/in.h>
 #include <termios.h>
+#include <sys/types.h>
+#include <sys/time.h>
 #include <sys/epoll.h>
 
-#include <sys/types.h>
-#include <sys/socket.h>
-#include <arpa/inet.h>
+typedef int (*PLinkLoopFunction)(void *arg);
 
-#ifndef __linux__
-#ifdef __FreeBSD__
-#include <sys/socket.h>
-#else
-#include <net/socket.h>
-#endif
-#endif
-
-#include <sys/time.h>
-
-enum PLinkEpollAPI
-{
-    UseLinux,
-    UseANS,
-    UseFStack
-};
-
-extern PLinkEpollAPI apiSwitch;
-extern "C" int anssock_socket(int domain, int type, int protocol);
 
 int PLinkSocket(int domain, int type, int protocol)
 {
-    switch (apiSwitch)
-    {
-    case UseLinux:
-        return socket(domain, type, protocol);
-    case UseANS:
-        return anssock_socket(domain, type, protocol);
-    case UseFStack:
-    default:
-        return ff_socket(domain, type, protocol);
-    }
+#if API == LINUX
+    return socket(domain, type, protocol);
+#elif API == ANS
+    return anssock_socket(domain, type, protocol);
+#elif API == FSTACK
+    return ff_socket(domain, type, protocol);
+#else
+#error "Specify API"
+#endif
 }
 
 int PLinkEpollCtrl(int epfd, int op, int fd, epoll_event *event)
 {
-    switch (apiSwitch)
-    {
-    case UseLinux:
-        return epoll_ctl(epfd, op, fd, event);
-    case UseANS:
-        return anssock_epoll_ctl(epfd, op, fd, event);
-    case UseFStack:
-    default:
-        return ff_epoll_ctl(epfd, op, fd, event);
-    }
+#if API == LINUX
+    return epoll_ctl(epfd, op, fd, event);
+#elif API == ANS
+    return anssock_epoll_ctl(epfd, op, fd, event);
+#elif API == FSTACK
+    return ff_epoll_ctl(epfd, op, fd, event);
+#else
+#error "Specify API"
+#endif
 }
 
 int PLinkClose(int fd)
 {
-    switch (apiSwitch)
-    {
-    case UseLinux:
-        return close(fd);
-    case UseANS:
-        return anssock_close(fd);
-    case UseFStack:
-    default:
-        return ff_close(fd);
-    }
+#if API == LINUX
+    return close(fd);
+#elif API == ANS
+    return anssock_close(fd);
+#elif API == FSTACK
+    return ff_close(fd);
+#else
+#error "Specify API"
+#endif
 }
 
 ssize_t PLinkWrite(int fd, const void *buf, size_t count)
 {
-    switch (apiSwitch)
-    {
-    case UseLinux:
-        return write(fd, buf, count);
-    case UseANS:
-        return anssock_write(fd, buf, count);
-    case UseFStack:
-    default:
-        return ff_write(fd, buf, count);
-    }
+#if API == LINUX
+    return write(fd, buf, count);
+#elif API == ANS
+    return anssock_write(fd, buf, count);
+#elif API == FSTACK
+    return ff_write(fd, buf, count);
+#else
+#error "Specify API"
+#endif
 }
 
 int PLinkInit(size_t argc, char *argv[])
 {
-    switch (apiSwitch)
-    {
-    case UseLinux:
-        return 0; //write(fd, buf, count);
-    case UseANS:
-        return anssock_init(NULL);
-    case UseFStack:
-    default:
-        return ff_init(argc, argv);
-    }
+#if API == LINUX
+    return 0; //write(fd, buf, count);
+#elif API == ANS
+    return anssock_init(NULL);
+#elif API == FSTACK
+    return ff_init(argc, argv);
+#else
+#error "Specify API"
+#endif
 }
 
 //cannot simulate
 int PLinkSetNonBlock(int fd)
 {
     int on = 1;
-    switch (apiSwitch)
-    {
-    case UseLinux:
-        return ioctl(fd, FIONBIO, &on);
-    case UseANS:
-        return 0;
-    case UseFStack:
-    default:
-        return ff_ioctl(fd, FIONBIO, &on);
-    }
+#if API == LINUX
+    return ioctl(fd, FIONBIO, &on);
+#elif API == ANS
+    return 0;
+#elif API == FSTACK
+    return ff_ioctl(fd, FIONBIO, &on);
+#else
+#error "Specify API"
+#endif
 }
 
 int PLinkConnect(int sockfd, const sockaddr *addr, socklen_t addrlen)
 {
-    switch (apiSwitch)
-    {
-    case UseLinux:
-        return connect(sockfd, addr, addrlen);
-    case UseANS:
-        return anssock_connect(sockfd, addr, addrlen);
-    case UseFStack:
-    default:
-        return ff_connect(sockfd, (const linux_sockaddr *)addr, addrlen);
-    }
+#if API == LINUX
+    return connect(sockfd, addr, addrlen);
+#elif API == ANS
+    return anssock_connect(sockfd, addr, addrlen);
+#elif API == FSTACK
+    return ff_connect(sockfd, (const linux_sockaddr *)addr, addrlen);
+#else
+#error "Specify API"
+#endif
 }
 
-void PLinkRun(loop_func_t loop, void *arg)
+void PLinkRun(PLinkLoopFunction loop, void *arg)
 {
-    switch (apiSwitch)
+#if API == LINUX || API == ANS
+    while (true)
     {
-    case UseLinux:
-    case UseANS:
-        while (true)
-        {
-            loop(arg);
-        }
-        break;
-    case UseFStack:
-    default:
-        ff_run(loop, arg);
-        break;
+        loop(arg);
     }
+#elif API == FSTACK
+    ff_run(loop, arg);
+#else
+#error "Specify API"
+#endif
 }
 
 int PLinkAccept(int sockfd, struct sockaddr *addr, socklen_t *addrlen)
 {
-    switch (apiSwitch)
-    {
-    case UseLinux:
-        return accept(sockfd, addr, addrlen);
-    case UseANS:
-        return anssock_accept(sockfd, addr, addrlen);
-    case UseFStack:
-    default:
-        return ff_accept(sockfd, (linux_sockaddr *)addr, addrlen);
-    }
+#if API == LINUX
+    return accept(sockfd, addr, addrlen);
+#elif API == ANS
+    return anssock_accept(sockfd, addr, addrlen);
+#elif API == FSTACK
+    return ff_accept(sockfd, (linux_sockaddr *)addr, addrlen);
+#else
+#error "Specify API"
+#endif
 }
 
 int PLinkListen(int sockfd, int backlog)
 {
-    switch (apiSwitch)
-    {
-    case UseLinux:
-        return listen(sockfd, backlog);
-    case UseANS:
-        return anssock_listen(sockfd, backlog);
-    case UseFStack:
-    default:
-        return ff_listen(sockfd, backlog);
-    }
+#if API == LINUX
+    return listen(sockfd, backlog);
+#elif API == ANS
+    return anssock_listen(sockfd, backlog);
+#elif API == FSTACK
+    return ff_listen(sockfd, backlog);
+#else
+#error "Specify API"
+#endif
 }
 
 int PLinkEpollCreate()
 {
-    switch (apiSwitch)
-    {
-    case UseLinux:
-        return epoll_create(1);
-    case UseANS:
-        return anssock_epoll_create(512);
-    case UseFStack:
-    default:
-        return ff_epoll_create(1);
-    }
+#if API == LINUX
+    return epoll_create(1);
+#elif API == ANS
+    return anssock_epoll_create(512);
+#elif API == FSTACK
+    return ff_epoll_create(1);
+#else
+#error "Specify API"
+#endif
 }
 
 int PLinkBind(int sockfd, const sockaddr *addr, socklen_t addrlen)
 {
-    switch (apiSwitch)
-    {
-    case UseLinux:
-        return bind(sockfd, addr, addrlen);
-    case UseANS:
-        return anssock_bind(sockfd, addr, addrlen);
-    case UseFStack:
-    default:
-        return ff_bind(sockfd, (linux_sockaddr *)addr, addrlen);
-    }
+#if API == LINUX
+    return bind(sockfd, addr, addrlen);
+#elif API == ANS
+    return anssock_bind(sockfd, addr, addrlen);
+#elif API == FSTACK
+    return ff_bind(sockfd, (linux_sockaddr *)addr, addrlen);
+#else
+#error "Specify API"
+#endif
 }
 
 ssize_t PLinkRead(int fd, void *buf, size_t count)
 {
-    switch (apiSwitch)
-    {
-    case UseLinux:
-        return read(fd, buf, count);
-    case UseANS:
-        return anssock_read(fd, buf, count);
-    case UseFStack:
-    default:
-        return ff_read(fd, buf, count);
-    }
+#if API == LINUX
+    return read(fd, buf, count);
+#elif API == ANS
+    return anssock_read(fd, buf, count);
+#elif API == FSTACK
+    return ff_read(fd, buf, count);
+#else
+#error "Specify API"
+#endif
 }
 
 int PLinkEpollWait(int epfd, epoll_event *events, int maxevents, int timeout)
 {
-    switch (apiSwitch)
-    {
-    case UseLinux:
-        return epoll_wait(epfd, events, maxevents, timeout);
-    case UseANS:
-        return anssock_epoll_wait(epfd, events, maxevents, timeout);
-    case UseFStack:
-        return ff_epoll_wait(epfd, events, maxevents, timeout);
-    }
+#if API == LINUX
+    return epoll_wait(epfd, events, maxevents, timeout);
+#elif API == ANS
+    return anssock_epoll_wait(epfd, events, maxevents, timeout);
+#elif API == FSTACK
+    return ff_epoll_wait(epfd, events, maxevents, timeout);
+#else
+#error "Specify API"
+#endif
 }
