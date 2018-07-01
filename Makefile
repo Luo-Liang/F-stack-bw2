@@ -29,8 +29,7 @@ CPPFLAGS += -O3 -std=c++11 -g \
 
 LDLIBS += $(RTE_ANS)/librte_anssock/librte_anssock.a \
           -L$(RTE_SDK)/$(RTE_TARGET)/lib \
-          -Wl,--whole-archive -Wl,-lrte_mbuf -Wl,-lrte_mempool_ring -Wl,-lrte_mempool -Wl,-lrte_ring -Wl,-lrte_eal \
-	  -Wl,-lrte_ethdev -Wl,-lrte_timer \
+	  -L${FF_DPDK}/lib -Wl,--whole-archive,-ldpdk,--no-whole-archive \
 	  -Wl,--no-whole-archive -Wl,-export-dynamic -lrt -pthread -ldl -lnuma -lstdc++ \
 	  -L${FF_PATH}/lib -Wl,--whole-archive,-lfstack,--no-whole-archive \
 	  -Wl,--no-whole-archive -lm  -lcrypto 
