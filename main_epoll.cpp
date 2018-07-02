@@ -162,5 +162,6 @@ int main(int argc, char *argv[])
     ev.events = EPOLLIN;
     PLinkEpollCtrl(epfd, EPOLL_CTL_ADD, sockfd, &ev);
     PLinkRun(loop, NULL);
+    PLinkClose(sockfd);
     return 0;
 }

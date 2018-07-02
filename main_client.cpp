@@ -37,6 +37,7 @@ int loop(void *arg)
     gettimeofday(&now, NULL);
     if (now.tv_sec - start.tv_sec > duration && transferInitiated)
     {
+        PLinkClose(sockfd);
         exit(0);
     }
     if (now.tv_sec - last.tv_sec >= interval && connected)
@@ -147,7 +148,7 @@ int main(int argc, char *argv[])
     int ret = PLinkBind(sockfd, (const sockaddr *)&my_addr, sizeof(my_addr));
     if (ret < 0)
     {
-        printf("ff_bind failed\n");
+        printf("PLinkBind failed, errno = %s\n", strerror(errno));
         exit(1);
     }
 
