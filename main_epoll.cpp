@@ -93,7 +93,7 @@ int loop(void *arg)
     }
 }
 
-void ctrlHandler(sig_t s)
+void ctrlHandler(int s)
 {
     printf("exiting... %d\n", s);
     PLinkClose(sockfd);
