@@ -10,7 +10,9 @@
 #include <errno.h>
 #include <assert.h>
 #include <vector>
-
+#include <signal.h>
+#include <stdlib.h>
+#include <stdio.h>
 #include "PLinkNixEpollEAL.h"
 #include "argparse.h"
 
@@ -91,6 +93,13 @@ int loop(void *arg)
     }
 }
 
+void ctrlHandler(sig_t s)
+{
+    printf("exiting... %d\n", s);
+    PLinkClose(sockfd);
+    exit(0);
+}
+
 int main(int argc, char *argv[])
 {
     int skip = 0;
@@ -113,7 +122,7 @@ int main(int argc, char *argv[])
         ap.ignoreFirstArgument(false);
     }
     ap.parse(nargc, (const char **)nargv);
-    
+
     PLinkInit(argc, argv);
     requestSize = 64;
     if (ap.count("pktSize") > 0)
@@ -134,6 +143,9 @@ int main(int argc, char *argv[])
         printf("ff_socket failed\n");
         exit(1);
     }
+
+    signal(SIGINT, ctrlHandler);
+    //set up handler
 
     PLinkSetNonBlock(sockfd);
 
