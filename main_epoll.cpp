@@ -15,6 +15,8 @@
 #include <stdio.h>
 #include "PLinkNixEpollEAL.h"
 #include "argparse.h"
+#include <iostream>
+#include <thread>
 
 #define MAX_EVENTS 512
 
@@ -97,7 +99,30 @@ void ctrlHandler(int s)
 {
     printf("exiting... %d\n", s);
     PLinkClose(sockfd);
+    PLinkClose(epfd);
     exit(0);
+}
+
+void CLIFunction()
+{
+    printf("CLI is up. Type a number to reset packet Size.\n");
+    for (std::string line; std::getline(std::cin, line);)
+    {
+        int packetSize = atoi(line.c_str());
+        if (packetSize < 0)
+        {
+            printf("packet size is invalid\n");
+        }
+        else
+        {
+            printf("resizing content without protection to %d. May crash.\n", packetSize);
+            contents.resize(packetSize);
+            for (int i = 0; i < packetSize; i++)
+            {
+                contents.at(i) = PLINK[i % sizeof(PLINK)];
+            }
+        }
+    }
 }
 
 int main(int argc, char *argv[])
@@ -173,6 +198,7 @@ int main(int argc, char *argv[])
     ev.data.fd = sockfd;
     ev.events = EPOLLIN;
     PLinkEpollCtrl(epfd, EPOLL_CTL_ADD, sockfd, &ev);
+    std::thread t(CLIFunction);
     PLinkRun(loop, NULL);
     PLinkClose(sockfd);
     return 0;
