@@ -35,11 +35,11 @@ int loop(void *arg)
     gettimeofday(&now, NULL);
     if (now.tv_sec - start.tv_sec > duration && allTransferInitiated == sockfdVec.size())
     {
-        PLinkClose(epfd);
         for (auto sockfd : sockfdVec)
         {
             PLinkClose(sockfd);
         }
+        PLinkClose(epfd);
         exit(0);
     }
     if (now.tv_sec - last.tv_sec >= interval && allTransferInitiated == sockfdVec.size())
