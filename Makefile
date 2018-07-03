@@ -28,7 +28,7 @@ FSTACK = 2
 
 CPPFLAGS_LINUX += -O3 -std=c++11 -g
 
-LDLIBS_LINUX += 
+LDLIBS_LINUX += -lpthread
 
 CPPFLAGS_ANS += -O3 -std=c++11 -g \
           -I$(RTE_ANS)/librte_ans/include \
