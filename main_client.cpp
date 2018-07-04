@@ -15,7 +15,6 @@
 #include "argparse.h"
 
 #define MAX_EVENTS 512
-#define CLIENT_PORT 1234
 #define MAX_READ_SIZE 1024 * 1024 * 16 * 16
 struct epoll_event events[MAX_EVENTS];
 
@@ -140,7 +139,8 @@ int main(int argc, char *argv[])
     }
 
     assert((epfd = PLinkEpollCreate()) > 0);
-
+    srand((unsigned)time(0));
+    auto CLIENT_PORT = (uint16_t)(1024 + rand() % (65536 - 1024));
     for (int i = 0; i < sockCnt; i++)
     {
         int currSockfd = PLinkSocket(AF_INET, SOCK_STREAM, 0);
@@ -165,6 +165,10 @@ int main(int argc, char *argv[])
         if (ret < 0)
         {
             printf("PLinkBind failed, errno = %s\n", strerror(errno));
+            for (auto sock : sockfdVec)
+            {
+                PLinkClose(sock);
+            }
             exit(1);
         }
         struct epoll_event ev;

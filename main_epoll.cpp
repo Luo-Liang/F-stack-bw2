@@ -20,7 +20,6 @@
 
 #define MAX_EVENTS 512
 
-struct epoll_event ev;
 struct epoll_event events[MAX_EVENTS];
 
 int epfd;
@@ -49,7 +48,7 @@ int loop(void *arg)
                 {
                     break;
                 }
-
+                epoll_event ev;
                 /* Add to event list */
                 ev.data.fd = nclientfd;
                 ev.events = EPOLLIN;
@@ -72,6 +71,13 @@ int loop(void *arg)
                 /* Simply close socket */
                 PLinkEpollCtrl(epfd, EPOLL_CTL_DEL, events[i].data.fd, NULL);
                 PLinkClose(events[i].data.fd);
+                printf("an error is found on sockfd:%d\n", events[i].data.fd);
+                // int error = 0;
+                // socklen_t errlen = sizeof(error);
+                // if (getsockopt(events[i].data.fd, SOL_SOCKET, SO_ERROR, (void *)&error, &errlen) == 0)
+                // {
+                //     printf("error = %s\n", strerror(error));
+                // }
             }
             else if (events[i].events & EPOLLIN)
             {
@@ -195,6 +201,7 @@ int main(int argc, char *argv[])
     }
 
     assert((epfd = PLinkEpollCreate()) > 0);
+    epoll_event ev;
     ev.data.fd = sockfd;
     ev.events = EPOLLIN;
     PLinkEpollCtrl(epfd, EPOLL_CTL_ADD, sockfd, &ev);
