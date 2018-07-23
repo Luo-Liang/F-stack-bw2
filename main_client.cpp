@@ -140,7 +140,7 @@ int main(int argc, char *argv[])
 
     assert((epfd = PLinkEpollCreate()) > 0);
     srand((unsigned)time(0));
-    auto CLIENT_PORT = (uint16_t)(1024 + rand() % (65536 - 1024));
+    auto CLIENT_PORT = (uint16_t)(1024 + rand() % (49000));
     for (int i = 0; i < sockCnt; i++)
     {
         int currSockfd = PLinkSocket(AF_INET, SOCK_STREAM, 0);
